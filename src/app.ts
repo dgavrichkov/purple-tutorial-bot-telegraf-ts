@@ -1,7 +1,7 @@
 import { session, Telegraf } from 'telegraf';
 import { ConfigService } from './config/config.service';
 import { IConfigService } from './config/config.interface';
-import { IBotContext } from './config/context/context.interface';
+import { IBotContext } from './context/context.interface';
 import { Command } from './commands/command.class';
 
 class Bot {
