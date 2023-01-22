@@ -16,9 +16,10 @@ class Bot {
 	}
 
 	init() {
+		console.log('app initialized')
 		this.commands = [new StartCommand(this.bot)];
 		for(const command of this.commands) {
-			command.handle
+			command.handle();
 		}
 		this.bot.launch();
 	}

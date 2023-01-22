@@ -26,5 +26,4 @@ export class StartCommand extends Command {
 			ctx.editMessageText("😔 Очень жаль");
 		});
 	}
-	
 }
