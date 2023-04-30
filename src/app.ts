@@ -1,28 +1,32 @@
-import { Telegraf } from 'telegraf';
-import LocalSession from 'telegraf-session-local';
-import { ConfigService } from './config/config.service';
-import { IConfigService } from './config/config.interface';
-import { IBotContext } from './context/context.interface';
-import { Command } from './commands/command.class';
-import { StartCommand } from './commands/start.command';
+import { Telegraf } from "telegraf";
+import LocalSession from "telegraf-session-local";
+import { ConfigService } from "./config/config.service";
+import { IConfigService } from "./config/config.interface";
+import { IBotContext } from "./context/context.interface";
+import { Command } from "./commands/command.class";
+import { StartCommand } from "./commands/start.command";
+import { NoteCommand } from "./commands/note.command";
 
 class Bot {
-	bot: Telegraf<IBotContext>;
-	commands: Command[] = [];
+  bot: Telegraf<IBotContext>;
+  commands: Command[] = [];
 
-	constructor(private readonly configService: IConfigService) {
-		this.bot = new Telegraf<IBotContext>(this.configService.get('TOKEN'));
-		this.bot.use((new LocalSession({ database: 'sessions.json' })).middleware())
-	}
+  constructor(private readonly configService: IConfigService) {
+    this.bot = new Telegraf<IBotContext>(this.configService.get("TOKEN"));
+    this.bot.use(new LocalSession({ database: "sessions.json" }).middleware());
+  }
 
-	init() {
-		console.log('app initialized')
-		this.commands = [new StartCommand(this.bot)];
-		for(const command of this.commands) {
-			command.handle();
-		}
-		this.bot.launch();
-	}
+  init() {
+    console.log("app initialized");
+    this.commands = [new StartCommand(this.bot), new NoteCommand(this.bot)];
+    for (const command of this.commands) {
+      command.handle();
+    }
+    this.bot.command("wow", async (ctx) => {
+      await ctx.reply(`Hello ${ctx.state.role}`);
+    });
+    this.bot.launch();
+  }
 }
 
 const bot = new Bot(new ConfigService());
