@@ -20,14 +20,7 @@ export class NotionAPI {
   }
 
   init() {
-    this.sayHello();
-  }
-
-  async sayHello() {
-    const response = await this.notion.databases.query({
-      database_id: this.databaseId,
-    });
-    console.log("Hello, here is list of entries", response);
+    console.log("notion class started");
   }
 
   async findTodayPage(databaseId: string): Promise<null | PageObjectResponse> {

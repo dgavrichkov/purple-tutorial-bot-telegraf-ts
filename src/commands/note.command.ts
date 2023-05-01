@@ -13,7 +13,7 @@ export class NoteCommand extends Command {
 
   handle(): void {
     this.bot.command("note", (ctx) => {
-      ctx.reply("we will save that note on temporary array");
+      ctx.reply("Введите текст заметки");
       ctx.session.isNoteCommand = true;
     });
 
