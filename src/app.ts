@@ -6,6 +6,7 @@ import { IBotContext } from "./context/context.interface";
 import { Command } from "./commands/command.class";
 import { StartCommand } from "./commands/start.command";
 import { NoteCommand } from "./commands/note.command";
+import { NotionAPI } from "./api/notion/notion";
 
 class Bot {
   bot: Telegraf<IBotContext>;
@@ -18,13 +19,19 @@ class Bot {
 
   init() {
     console.log("app initialized");
-    this.commands = [new StartCommand(this.bot), new NoteCommand(this.bot)];
+    // i should initialize notion api instance here
+    const notionApi = new NotionAPI();
+    notionApi.init();
+
+    this.commands = [
+      new StartCommand(this.bot),
+      new NoteCommand(this.bot, notionApi),
+    ];
+
     for (const command of this.commands) {
       command.handle();
     }
-    this.bot.command("wow", async (ctx) => {
-      await ctx.reply(`Hello ${ctx.state.role}`);
-    });
+
     this.bot.launch();
   }
 }

@@ -1,11 +1,14 @@
 import { Telegraf } from "telegraf";
-import { sendMessageToNotionDatabase } from "../api/notion/notion";
+import { NotionAPI } from "../api/notion/notion";
 import { IBotContext } from "../context/context.interface";
 import { Command } from "./command.class";
 
 export class NoteCommand extends Command {
-  constructor(bot: Telegraf<IBotContext>) {
+  notion: NotionAPI;
+
+  constructor(bot: Telegraf<IBotContext>, notion: NotionAPI) {
     super(bot);
+    this.notion = notion;
   }
 
   handle(): void {
@@ -16,7 +19,7 @@ export class NoteCommand extends Command {
 
     this.bot.on("text", async (ctx) => {
       if (ctx.session.isNoteCommand) {
-        const phrase = await sendMessageToNotionDatabase(ctx.message.text);
+        const phrase = await this.notion.createDiaryNote(ctx.message.text);
 
         ctx.reply(phrase);
         ctx.session.isNoteCommand = false;

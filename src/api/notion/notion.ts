@@ -1,132 +1,76 @@
 import { Client } from "@notionhq/client";
-import { BlockObjectRequest } from "@notionhq/client/build/src/api-endpoints";
-import { format } from "date-fns";
 import {
-  MultiSelect,
-  CreatedTime,
-} from "notion-api-types/responses/properties/database";
+  CreatePageParameters,
+  PageObjectResponse,
+} from "@notionhq/client/build/src/api-endpoints";
+import { format } from "date-fns";
 import { ConfigService } from "../../config/config.service";
+import { buildTableForNote, buildTableRowForNote } from "./utils";
 
-const configService = new ConfigService();
-const notionKey = configService.get("NOTION_KEY");
-const notionDbKey = configService.get("NOTION_DB_KEY");
+export class NotionAPI {
+  notionKey: string;
+  databaseId: string;
+  notion: Client;
 
-const notion = new Client({ auth: notionKey });
+  constructor() {
+    const configService = new ConfigService();
+    this.notionKey = configService.get("NOTION_KEY");
+    this.databaseId = configService.get("NOTION_DB_KEY");
+    this.notion = new Client({ auth: this.notionKey });
+  }
 
-interface IDatabaseResult {
-  object: string;
-  id: string;
-  created_time: string;
-  last_edited_time: string;
-  created_by: {
-    object: string;
-    id: string;
-  };
-  last_edited_by: {
-    object: string;
-    id: string;
-  };
-  icon: {
-    type: string;
-    emoji: string;
-  };
-  parent: {
-    type: string;
-    database_id: string;
-  };
-  archived: boolean;
-  properties: {
-    Name: any;
-    Tags: MultiSelect;
-    Created: CreatedTime;
-  };
-  url: string;
-}
+  init() {
+    this.sayHello();
+  }
 
-// Функция проверки существования страницы за текущий день
-export async function checkTodayRecord(): Promise<null | IDatabaseResult> {
-  // Получаем сегодняшнюю дату в формате YYYY-MM-DD
-
-  try {
-    // Получаем список страниц, отфильтрованных по заданным параметрам
-    const today = format(new Date(), "yyyy-MM-dd");
-    const { results } = await notion.databases.query({
-      database_id: notionDbKey,
-      sorts: [
-        {
-          property: "Created",
-          direction: "descending",
-        },
-      ],
-      page_size: 1, // Запрашиваем только одну запись
+  async sayHello() {
+    const response = await this.notion.databases.query({
+      database_id: this.databaseId,
     });
+    console.log("Hello, here is list of entries", response);
+  }
 
-    const lastEntryDate = format(
-      new Date((results[0] as IDatabaseResult).created_time),
-      "yyyy-MM-dd"
-    );
+  async findTodayPage(databaseId: string): Promise<null | PageObjectResponse> {
+    try {
+      const today = format(new Date(), "yyyy-MM-dd");
+      const { results } = await this.notion.databases.query({
+        database_id: databaseId,
+        sorts: [
+          {
+            property: "Created",
+            direction: "descending",
+          },
+        ],
+        page_size: 1,
+      });
 
-    if (lastEntryDate === today) {
-      return results[0] as IDatabaseResult;
-    } else {
+      const lastEntryDate = format(
+        new Date((results[0] as PageObjectResponse).created_time),
+        "yyyy-MM-dd"
+      );
+
+      if (lastEntryDate === today) {
+        return results[0] as PageObjectResponse;
+      } else {
+        return null;
+      }
+    } catch (error) {
+      console.error(error);
       return null;
     }
-  } catch (error) {
-    console.error(error);
-    return null;
   }
-}
 
-async function addTextToPage(pageId: string, text: string, time: string) {
-  const blocks = await notion.blocks.children.list({
-    block_id: pageId,
-  });
-  const table_block_id = blocks.results[0].id;
-  console.log("BLOCKS", blocks);
+  async createDiaryNote(noteText: string) {
+    try {
+      const currentDate = new Date();
+      const formattedDate = format(currentDate, "yyyy-MM-dd");
+      const currentTime = format(currentDate, "HH:mm");
 
-  const newBlock: BlockObjectRequest = {
-    type: "table_row",
-    table_row: {
-      cells: [
-        [
-          {
-            type: "text",
-            text: {
-              content: text,
-            },
-          },
-        ],
-        [
-          {
-            type: "text",
-            text: {
-              content: time,
-            },
-          },
-        ],
-      ],
-    },
-  };
-  await notion.blocks.children.append({
-    block_id: table_block_id,
-    children: [newBlock],
-  });
-}
+      const todayRecord = await this.findTodayPage(this.databaseId);
 
-export async function sendMessageToNotionDatabase(
-  message: string
-): Promise<string> {
-  try {
-    const currentDate = new Date();
-    const formattedDate = format(currentDate, "yyyy-MM-dd");
-    const currentTime = format(currentDate, "HH:mm");
-
-    const todayRecord = await checkTodayRecord();
-
-    if (!todayRecord) {
-      const response = await notion.pages.create({
+      const newPageQuery: CreatePageParameters = {
         parent: {
-          database_id: notionDbKey,
+          database_id: this.databaseId,
         },
         icon: {
           type: "emoji",
@@ -143,74 +87,29 @@ export async function sendMessageToNotionDatabase(
             ],
           },
         },
-        children: [
-          {
-            object: "block",
-            type: "table",
-            table: {
-              table_width: 2,
-              has_column_header: true,
-              has_row_header: false,
-              children: [
-                {
-                  type: "table_row",
-                  table_row: {
-                    cells: [
-                      [
-                        {
-                          type: "text",
-                          text: {
-                            content: "Note",
-                          },
-                        },
-                      ],
-                      [
-                        {
-                          type: "text",
-                          text: {
-                            content: "Time",
-                          },
-                        },
-                      ],
-                    ],
-                  },
-                },
-                {
-                  type: "table_row",
-                  table_row: {
-                    cells: [
-                      [
-                        {
-                          type: "text",
-                          text: {
-                            content: `${message}`,
-                          },
-                        },
-                      ],
-                      [
-                        {
-                          type: "text",
-                          text: {
-                            content: `${currentTime}`,
-                          },
-                        },
-                      ],
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      });
-      console.log("RESPONSE", response);
-      return "Запись добавлена";
-    } else {
-      addTextToPage(todayRecord.id, message, currentTime);
-      return `Текст должнен быть добавлен в запись ${todayRecord.id}`;
+        children: buildTableForNote(noteText, currentTime),
+      };
+
+      if (!todayRecord) {
+        const response = await this.notion.pages.create(newPageQuery);
+        console.log("RESPONSE", response);
+        return "Заметка добавлена";
+      } else {
+        const blocks = await this.notion.blocks.children.list({
+          block_id: todayRecord.id,
+        });
+        const table_block_id = blocks.results[0].id;
+        console.log("BLOCKS", blocks);
+
+        await this.notion.blocks.children.append({
+          block_id: table_block_id,
+          children: [buildTableRowForNote(noteText, currentTime)],
+        });
+        return `Текст добавлен в сегодняшнюю заметку`;
+      }
+    } catch (error) {
+      console.error(error);
     }
-  } catch (error) {
-    console.error(error);
+    return "We failed";
   }
-  return "We failed";
 }
