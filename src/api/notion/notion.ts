@@ -1,4 +1,5 @@
 import { Client } from "@notionhq/client";
+import { BlockObjectRequest } from "@notionhq/client/build/src/api-endpoints";
 import { format } from "date-fns";
 import {
   MultiSelect,
@@ -76,20 +77,38 @@ export async function checkTodayRecord(): Promise<null | IDatabaseResult> {
   }
 }
 
-async function addTextToPage(pageId: string, text: string) {
-  const newBlock = {
-    paragraph: {
-      rich_text: [
-        {
-          text: {
-            content: text,
+async function addTextToPage(pageId: string, text: string, time: string) {
+  const blocks = await notion.blocks.children.list({
+    block_id: pageId,
+  });
+  const table_block_id = blocks.results[0].id;
+  console.log("BLOCKS", blocks);
+
+  const newBlock: BlockObjectRequest = {
+    type: "table_row",
+    table_row: {
+      cells: [
+        [
+          {
+            type: "text",
+            text: {
+              content: text,
+            },
           },
-        },
+        ],
+        [
+          {
+            type: "text",
+            text: {
+              content: time,
+            },
+          },
+        ],
       ],
     },
   };
   await notion.blocks.children.append({
-    block_id: pageId,
+    block_id: table_block_id,
     children: [newBlock],
   });
 }
@@ -127,14 +146,56 @@ export async function sendMessageToNotionDatabase(
         children: [
           {
             object: "block",
-            type: "paragraph",
-            paragraph: {
-              rich_text: [
+            type: "table",
+            table: {
+              table_width: 2,
+              has_column_header: true,
+              has_row_header: false,
+              children: [
                 {
-                  type: "text",
-
-                  text: {
-                    content: `${currentTime} - ${message}`,
+                  type: "table_row",
+                  table_row: {
+                    cells: [
+                      [
+                        {
+                          type: "text",
+                          text: {
+                            content: "Note",
+                          },
+                        },
+                      ],
+                      [
+                        {
+                          type: "text",
+                          text: {
+                            content: "Time",
+                          },
+                        },
+                      ],
+                    ],
+                  },
+                },
+                {
+                  type: "table_row",
+                  table_row: {
+                    cells: [
+                      [
+                        {
+                          type: "text",
+                          text: {
+                            content: `${message}`,
+                          },
+                        },
+                      ],
+                      [
+                        {
+                          type: "text",
+                          text: {
+                            content: `${currentTime}`,
+                          },
+                        },
+                      ],
+                    ],
                   },
                 },
               ],
@@ -145,7 +206,7 @@ export async function sendMessageToNotionDatabase(
       console.log("RESPONSE", response);
       return "Запись добавлена";
     } else {
-      addTextToPage(todayRecord.id, `${currentTime} - ${message}`);
+      addTextToPage(todayRecord.id, message, currentTime);
       return `Текст должнен быть добавлен в запись ${todayRecord.id}`;
     }
   } catch (error) {
